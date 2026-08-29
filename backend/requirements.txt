@@ -6,3 +6,4 @@ websockets==15.0.1
 pandas==2.3.1
 numpy==2.3.2
 python-dotenv==1.1.1
+fyers-apiv3
