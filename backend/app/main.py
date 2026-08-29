@@ -1,19 +1,15 @@
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, Query
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .fyers import FyersClient
 from .scanner import MarketScanner
 from .ws import hub
 
-app = FastAPI(title=settings.app_name, version="0.2.0")
+app = FastAPI(title=settings.app_name, version="0.3.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 fyers = FyersClient()
-scanner = MarketScanner(["NIFTY50", "BANKNIFTY", "RELIANCE", "TCS", "INFY", "HDFCBANK"])
-
-@app.on_event("startup")
-async def startup():
-    import asyncio
-    asyncio.create_task(__import__("app.ws", fromlist=["heartbeat"]).heartbeat())
+SYMBOLS = ["NSE:NIFTY50-INDEX", "NSE:NIFTYBANK-INDEX", "NSE:RELIANCE-EQ", "NSE:TCS-EQ", "NSE:INFY-EQ", "NSE:HDFCBANK-EQ"]
+scanner = MarketScanner(SYMBOLS)
 
 @app.get("/health")
 async def health():
@@ -22,6 +18,11 @@ async def health():
 @app.get("/api/fyers/login")
 async def fyers_login():
     return {"url": fyers.login_url()}
+
+@app.get("/api/fyers/callback")
+async def fyers_callback(auth_code: str = Query(...), state: str = Query("")):
+    token = await fyers.exchange_auth_code(auth_code)
+    return {"status": "authenticated", "message": "FYERS access token obtained. Store it as FYERS_ACCESS_TOKEN in Railway, then restart the service.", "state": state, "token_received": bool(token.get("access_token"))}
 
 @app.get("/api/config")
 async def config():
